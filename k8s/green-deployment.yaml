@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pbl-green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pbl-cicd
+      version: green
+  template:
+    metadata:
+      labels:
+        app: pbl-cicd
+        version: green
+    spec:
+      containers:
+        - name: pbl-cicd-container
+          image: pbl-cicd-app:v2
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
