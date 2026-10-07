@@ -2,13 +2,10 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "pbl-cicd-app"
-        IMAGE_TAG = "v2"
+        IMAGE_NAME = "healthcare-devsecops"
+        IMAGE_TAG = "v1"
 
-        // Kubernetes configuration for the shrek user
         KUBECONFIG = "C:\\Users\\shrek\\.kube\\config"
-
-        // Minikube profile location
         MINIKUBE_HOME = "C:\\Users\\shrek\\.minikube"
     }
 
@@ -16,71 +13,62 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out Blue-Green project...'
+                echo 'Checking out healthcare DevSecOps project...'
                 checkout scm
             }
         }
 
-        stage('Build Green Image') {
+        stage('Build Docker Image') {
             steps {
-                echo 'Building Docker V2 image...'
+                echo 'Building healthcare application Docker image...'
 
                 bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
             }
         }
 
-        stage('Load Green Image') {
+        stage('Security Scan') {
             steps {
-                echo 'Loading V2 image into Minikube...'
+                echo 'Scanning Docker image for vulnerabilities using Trivy...'
+
+                bat 'trivy image --severity HIGH,CRITICAL %IMAGE_NAME%:%IMAGE_TAG%'
+            }
+        }
+
+        stage('Load Image into Minikube') {
+            steps {
+                echo 'Loading secure image into Minikube...'
 
                 bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
             }
         }
 
-        stage('Deploy Green') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo 'Deploying GREEN version...'
+                echo 'Deploying healthcare application to Kubernetes...'
 
-                bat 'kubectl apply -f k8s/green-deployment.yaml'
-            }
-        }
-
-        stage('Verify Green') {
-            steps {
-                echo 'Waiting for GREEN deployment...'
-
-                bat 'kubectl rollout status deployment/pbl-green --timeout=120s'
-
-                bat 'kubectl get pods -l version=green'
-            }
-        }
-
-        stage('Switch Traffic to Green') {
-            steps {
-                echo 'Switching traffic from BLUE to GREEN...'
-
+                bat 'kubectl apply -f k8s/deployment.yaml'
                 bat 'kubectl apply -f k8s/service.yaml'
             }
         }
 
-        stage('Verify Service') {
+        stage('Verify Deployment') {
             steps {
-                echo 'Verifying Blue-Green service...'
+                echo 'Verifying healthcare deployment...'
 
-                bat 'kubectl get service pbl-bluegreen-service'
-
-                bat 'kubectl get pods --show-labels'
+                bat 'kubectl rollout status deployment/healthcare-app --timeout=120s'
+                bat 'kubectl get pods'
+                bat 'kubectl get service healthcare-service'
             }
         }
     }
 
     post {
         success {
-            echo 'Blue-Green deployment completed successfully!'
+            echo 'DevSecOps pipeline completed successfully!'
         }
 
         failure {
-            echo 'Blue-Green deployment failed!'
+            echo 'DevSecOps pipeline failed!'
         }
     }
 }
