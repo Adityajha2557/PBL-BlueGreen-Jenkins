@@ -4,7 +4,12 @@ pipeline {
     environment {
         IMAGE_NAME = "pbl-cicd-app"
         IMAGE_TAG = "v2"
+
+        // Kubernetes configuration for the shrek user
         KUBECONFIG = "C:\\Users\\shrek\\.kube\\config"
+
+        // Minikube profile location
+        MINIKUBE_HOME = "C:\\Users\\shrek\\.minikube"
     }
 
     stages {
@@ -19,6 +24,7 @@ pipeline {
         stage('Build Green Image') {
             steps {
                 echo 'Building Docker V2 image...'
+
                 bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
             }
         }
@@ -26,6 +32,7 @@ pipeline {
         stage('Load Green Image') {
             steps {
                 echo 'Loading V2 image into Minikube...'
+
                 bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
             }
         }
@@ -33,6 +40,7 @@ pipeline {
         stage('Deploy Green') {
             steps {
                 echo 'Deploying GREEN version...'
+
                 bat 'kubectl apply -f k8s/green-deployment.yaml'
             }
         }
@@ -40,7 +48,9 @@ pipeline {
         stage('Verify Green') {
             steps {
                 echo 'Waiting for GREEN deployment...'
+
                 bat 'kubectl rollout status deployment/pbl-green --timeout=120s'
+
                 bat 'kubectl get pods -l version=green'
             }
         }
@@ -48,6 +58,7 @@ pipeline {
         stage('Switch Traffic to Green') {
             steps {
                 echo 'Switching traffic from BLUE to GREEN...'
+
                 bat 'kubectl apply -f k8s/service.yaml'
             }
         }
@@ -55,7 +66,9 @@ pipeline {
         stage('Verify Service') {
             steps {
                 echo 'Verifying Blue-Green service...'
+
                 bat 'kubectl get service pbl-bluegreen-service'
+
                 bat 'kubectl get pods --show-labels'
             }
         }
