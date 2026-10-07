@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "pbl-cicd-app"
-        IMAGE_TAG = "latest"
+        IMAGE_TAG = "v2"
         KUBECONFIG = "C:\\Users\\shrek\\.kube\\config"
     }
 
@@ -11,42 +11,63 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
+                echo 'Checking out Blue-Green project...'
                 checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Green Image') {
             steps {
-                echo 'Building Docker image...'
+                echo 'Building Docker V2 image...'
                 bat 'docker build -t %IMAGE_NAME%:%IMAGE_TAG% .'
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Load Green Image') {
             steps {
-                echo 'Deploying application to Kubernetes...'
-                bat 'kubectl apply -f k8s/deployment.yaml'
+                echo 'Loading V2 image into Minikube...'
+                bat 'minikube image load %IMAGE_NAME%:%IMAGE_TAG%'
+            }
+        }
+
+        stage('Deploy Green') {
+            steps {
+                echo 'Deploying GREEN version...'
+                bat 'kubectl apply -f k8s/green-deployment.yaml'
+            }
+        }
+
+        stage('Verify Green') {
+            steps {
+                echo 'Waiting for GREEN deployment...'
+                bat 'kubectl rollout status deployment/pbl-green --timeout=120s'
+                bat 'kubectl get pods -l version=green'
+            }
+        }
+
+        stage('Switch Traffic to Green') {
+            steps {
+                echo 'Switching traffic from BLUE to GREEN...'
                 bat 'kubectl apply -f k8s/service.yaml'
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Verify Service') {
             steps {
-                echo 'Checking Kubernetes deployment...'
-                bat 'kubectl get pods'
-                bat 'kubectl get services'
+                echo 'Verifying Blue-Green service...'
+                bat 'kubectl get service pbl-bluegreen-service'
+                bat 'kubectl get pods --show-labels'
             }
         }
     }
 
     post {
         success {
-            echo 'CI/CD Pipeline completed successfully!'
+            echo 'Blue-Green deployment completed successfully!'
         }
 
         failure {
-            echo 'CI/CD Pipeline failed!'
+            echo 'Blue-Green deployment failed!'
         }
     }
 }
